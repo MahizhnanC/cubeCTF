@@ -1,59 +1,22 @@
-import os
-import shutil
-import filetype
+from pathlib import Path
+from Cryptodome.Cipher import AES
+from Cryptodome.Protocol.KDF import PBKDF2
+from Cryptodome.Util.Padding import unpad
 
-# Set this to your decrypted files folder
-SOURCE_FOLDER = r"\Encoded_discord\Cache_Data"
+ENCODED_CACHE_PATH = Path(r"C:\Users\mahiy\Encoded_discord\Cache_Data")
+user_id = "1334198101459861555"
+salt = b"BBBBBBBBBBBBBBBB"
+iv = b"BBBBBBBBBBBBBBBB"
+key = PBKDF2(user_id.encode(), salt, 32, 1000000)
 
-# Where to store organized files
-DEST_BASE = os.path.join(SOURCE_FOLDER, "organized")
-
-# Mapping extensions to folder names
-EXTENSION_MAP = {
-    "jpg": "images",
-    "jpeg": "images",
-    "png": "images",
-    "webp": "images",
-    "gif": "images",
-    "woff2": "fonts",
-    "ttf": "fonts",
-    "otf": "fonts",
-    "gz": "compressed",
-    "zip": "compressed",
-    "json": "data",
-    "html": "web",
-    "js": "web",
-    "css": "web"
-}
-
-# Make folders
-def ensure_folder(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-def organize():
-    ensure_folder(DEST_BASE)
-    for filename in os.listdir(SOURCE_FOLDER):
-        file_path = os.path.join(SOURCE_FOLDER, filename)
-        if not os.path.isfile(file_path):
-            continue
-
-        kind = filetype.guess(file_path)
-        if kind:
-            ext = kind.extension
-            new_name = filename.split(".")[0] + "." + ext
-            folder = EXTENSION_MAP.get(ext, "misc")
-        else:
-            ext = None
-            new_name = filename
-            folder = "unknown"
-
-        dest_folder = os.path.join(DEST_BASE, folder)
-        ensure_folder(dest_folder)
-        dest_path = os.path.join(dest_folder, new_name)
-
-        print(f"Moving {filename} → {folder}/{new_name}")
-        shutil.copy2(file_path, dest_path)
-
-if __name__ == "__main__":
-    organize()
+print(f"Decrypting files in {ENCODED_CACHE_PATH}...")
+for file in ENCODED_CACHE_PATH.glob("*.enc"):
+    try:
+        ciphertext = file.read_bytes()
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        plaintext = unpad(cipher.decrypt(ciphertext), 16)
+        decrypted_path = file.with_suffix("")  # remove .enc
+        decrypted_path.write_bytes(plaintext)
+        print(f"Decrypted {file.name} → {decrypted_path.name}")
+    except Exception as e:
+        print(f"Failed to decrypt {file.name}: {e}")
